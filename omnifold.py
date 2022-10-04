@@ -10,6 +10,7 @@ def reweight(events,model,batch_size=10000):
 
 # Binary crossentropy for classifying two samples with weights
 # Weights are "hidden" by zipping in y_true (the labels)
+
 def weighted_binary_crossentropy(y_true, y_pred):
     weights = tf.gather(y_true, [1], axis=1) # event weights
     y_true = tf.gather(y_true, [0], axis=1) # actual y_true for loss
@@ -65,9 +66,10 @@ def omnifold(theta0,theta_unknown_S,iterations,model,verbose=0):
         Y_train_1 = np.stack((Y_train_1, w_train_1), axis=1)
         Y_test_1 = np.stack((Y_test_1, w_test_1), axis=1)   
         
-        model.compile(loss='binary_crossentropy',
+        model.compile(loss=weighted_binary_crossentropy,
                       optimizer='Adam',
                       metrics=['accuracy'])
+
         model.fit(X_train_1,
                   Y_train_1,
                   epochs=20,
@@ -75,7 +77,6 @@ def omnifold(theta0,theta_unknown_S,iterations,model,verbose=0):
                   validation_data=(X_test_1, Y_test_1),
                   verbose=verbose)
 
-        #STEP 1
         weights_pull = weights_push * reweight(theta0_S,model)
         weights[i, :1, :] = weights_pull
 
@@ -88,33 +89,14 @@ def omnifold(theta0,theta_unknown_S,iterations,model,verbose=0):
 
         weights_2 = np.concatenate((np.ones(len(theta0_G)), weights_pull))
         # ones for Gen. (not MC weights), actual weights for (reweighted) Gen.
-        #at every step two, go to unweighted to current iteration weights.
 
         X_train_2, X_test_2, Y_train_2, Y_test_2, w_train_2, w_test_2 = train_test_split(xvals_2, yvals_2, weights_2)
-
-        #From the OmniFold Paper:
-        #v_n(t) = v_n-1(t) * L[(w_n^pull,Gen),(v_n-1,Gen.)](t)
-        #Where w_n^pull are the weights obtaind from Step 1
-        # and L in a probability density ratio, where p(w_n^pull,Gen)(t) 
-        #is the prob. density of observing t given weights w_n^pull and samples 'Gen')
-        # L is approximated as a classifier (NN) here and above in step 1
-
-        #The application of the previous iterations weights, and the justification of np.concat(ones,weights)
-        #must be in the reweight function., where the previous weights are multiplied to the 'model', which is v_n-1*L,
-        # and applied to the Generated data: (v_n-1,Gen.)
-
-        # reweight(model,events,batch_size=10000):
-        # f = model.predict(events, batch_size=batch_size)
-        # weights = f / (1. - f)
-        # return np.squeeze(np.nan_to_num(weights))
-
-        #FIXME: I don't understand the reweight function gets you the eqn in the paper....
 
         # zip ("hide") the weights with the labels
         Y_train_2 = np.stack((Y_train_2, w_train_2), axis=1)
         Y_test_2 = np.stack((Y_test_2, w_test_2), axis=1)   
         
-        model.compile(loss='binary_crossentropy',
+        model.compile(loss=weighted_binary_crossentropy,
                       optimizer='Adam',
                       metrics=['accuracy'])
         model.fit(X_train_2,
