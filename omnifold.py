@@ -24,16 +24,17 @@ def weighted_binary_crossentropy(y_true, y_pred):
     
     return K.mean(t_loss)
 
-def omnifold(theta0,theta_unknown_S,iterations,model,verbose=0):
+def omnifold(theta0_G,theta0_S,theta_unknown_S,iterations,model,verbose=0):
 
-    weights = np.empty(shape=(iterations, 2, len(theta0)))
+    if any(len(lst) != len(theta0_S) for lst in [theta0_S, theta0_G, theta_unknown_S]):
+        print("all inputs must be of same length")
+        exit
+
+    weights = np.empty(shape=(iterations, 2, len(theta0_S)))
     # shape = (iteration, step, event)
     
-    theta0_G = theta0[:,0]
-    theta0_S = theta0[:,1]
-    
-    labels0 = np.zeros(len(theta0))
-    labels_unknown = np.ones(len(theta_unknown_S))
+    labels0 = np.zeros(len(theta0_S)) #synthetic theta0_S label = 0
+    labels_unknown = np.ones(len(theta_unknown_S)) #data, theta_unknown_S
     
     xvals_1 = np.concatenate((theta0_S, theta_unknown_S))
     yvals_1 = np.concatenate((labels0, labels_unknown))
